@@ -206,6 +206,9 @@ function draw() {
     for (let c = 0; c < COLS; c++)
       drawBlock(ctx, c, r, board[r][c], BLOCK);
 
+  // tras el Game Over la pieza actual está solapada con la pila: no se dibuja
+  if (gameOver) return;
+
   // ghost
   const gy = ghostY();
   for (let r = 0; r < current.shape.length; r++)
@@ -231,8 +234,11 @@ function drawNext() {
 }
 
 function endGame() {
+  if (gameOver) return;
   gameOver = true;
   cancelAnimationFrame(animId);
+  animId = null;
+  draw(); // frame final: el tablero asentado, sin más fichas
   overlayTitle.textContent = 'GAME OVER';
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
   overlay.classList.remove('hidden');
@@ -253,6 +259,8 @@ function togglePause() {
 }
 
 function loop(ts) {
+  // corta cualquier frame agendado antes de terminar o pausar la partida
+  if (gameOver || paused) return;
   const dt = ts - lastTime;
   lastTime = ts;
   dropAccum += dt;
@@ -265,6 +273,9 @@ function loop(ts) {
     }
   }
   draw();
+  // lockPiece() puede haber terminado la partida en este mismo frame:
+  // no reprogramar, o el bucle seguiría generando fichas tras el Game Over
+  if (gameOver || paused) return;
   animId = requestAnimationFrame(loop);
 }
 

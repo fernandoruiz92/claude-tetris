@@ -26,6 +26,15 @@
   --switch-bg: #22223a;
   --switch-border: #3a3a5a;
   --switch-knob: #7aa2f7;
+  --input-bg: #22223a;
+  --input-border: #3a3a5a;
+  --input-color: #e0e0e0;
+  --record-color: #c8c8dc;
+  --record-new-bg: rgba(122, 162, 247, 0.22);
+  --record-new-color: #ffd54f;
+  --danger-color: #e57373;
+  --danger-border: rgba(229, 115, 115, 0.5);
+  --danger-hover-bg: rgba(229, 115, 115, 0.15);
 }
 
 [data-theme="light"] {
@@ -50,6 +59,15 @@
   --switch-bg: #c8c8d8;
   --switch-border: #b0b0c0;
   --switch-knob: #3b5bdb;
+  --input-bg: #ffffff;
+  --input-border: #c8c8d8;
+  --input-color: #24242e;
+  --record-color: #3a3a4a;
+  --record-new-bg: rgba(59, 91, 219, 0.16);
+  --record-new-color: #6f4500;
+  --danger-color: #c62828;
+  --danger-border: rgba(198, 40, 40, 0.45);
+  --danger-hover-bg: rgba(198, 40, 40, 0.12);
 }
 
 body {
@@ -169,6 +187,9 @@ kbd {
   width: 44px;
   height: 24px;
   flex-shrink: 0;
+  /* los overlays cubren toda la .wrapper: el toggle se queda por encima
+     para poder cambiar de tema también en la pantalla de inicio */
+  z-index: 1;
 }
 
 .theme-switch input {
@@ -240,8 +261,8 @@ kbd {
   color: var(--value-color);
 }
 
-#restart-btn {
-  margin-top: 8px;
+/* ---- Botones ---- */
+.btn {
   background: var(--restart-bg);
   color: var(--restart-color);
   border: none;
@@ -253,7 +274,166 @@ kbd {
   letter-spacing: 1px;
   transition: background 0.15s;
 }
+.btn:hover { background: var(--restart-hover); }
 
-#restart-btn:hover {
-  background: var(--restart-hover);
+.btn-danger {
+  background: transparent;
+  color: var(--danger-color);
+  border: 1px solid var(--danger-border);
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.btn-danger:hover { background: var(--danger-hover-bg); }
+
+/* ---- Tabla de records ---- */
+.records {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 260px;
+}
+
+.records-empty {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  color: var(--record-color);
+  text-align: center;
+  padding: 6px 0;
+}
+
+.records-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.record-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: baseline;
+  text-align: left;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  color: var(--record-color);
+  padding: 3px 6px;
+  border-radius: 3px;
+}
+
+.record-row.record-new {
+  background: var(--record-new-bg);
+  color: var(--record-new-color);
+  font-weight: 700;
+}
+
+/* --controls-color contrasta mejor que --label-color sobre el overlay */
+.record-pos { color: var(--controls-color); }
+.record-new .record-pos { color: inherit; }
+
+.record-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.record-meta {
+  font-size: 11px;
+  color: var(--controls-color);
+}
+.record-new .record-meta { color: inherit; }
+
+.record-score {
+  text-align: right;
+  min-width: 60px;
+}
+
+.records-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 24px;
+  padding-top: 2px;
+}
+
+.records-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.records-stat-label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--controls-color);
+  text-transform: uppercase;
+}
+
+.records-stat-value {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--value-color);
+}
+
+/* ---- Formulario de nombre ---- */
+.name-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.name-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.text-input {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--input-color);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.text-input:focus {
+  outline: 2px solid var(--value-color);
+  outline-offset: 1px;
+}
+
+.name-row .text-input { width: 120px; }
+
+.name-row .btn {
+  padding: 8px 16px;
+  font-size: 12px;
+}
+
+/* ---- Pantalla de inicio ---- */
+.start-level {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+#level-select {
+  width: 90px;
+  text-align: center;
+  cursor: pointer;
+}
+
+/* al final: gana a las reglas de display de los bloques ocultables */
+.hidden {
+  display: none !important;
 }

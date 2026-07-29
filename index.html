@@ -48,7 +48,7 @@
             <li><kbd>↑</kbd> rotar</li>
             <li><kbd>↓</kbd> bajar</li>
             <li><kbd>Space</kbd> caída</li>
-            <li><kbd>P</kbd> pausa</li>
+            <li><kbd>P</kbd> o <kbd>Esc</kbd> pausa</li>
           </ul>
         </div>
       </aside>
@@ -58,7 +58,39 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
-        <button id="restart-btn">Reiniciar</button>
+        <button id="restart-btn" class="btn" type="button">Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="pause-menu" class="overlay hidden">
+      <div class="overlay-box">
+        <!-- Vista principal del menú -->
+        <div id="pause-main" class="menu-view">
+          <p class="menu-title">PAUSA</p>
+          <button id="resume-btn" class="btn btn-menu" type="button">Reanudar</button>
+          <button id="menu-restart-btn" class="btn btn-menu" type="button">Reiniciar</button>
+          <button id="show-controls-btn" class="btn btn-menu" type="button">Ver controles</button>
+          <div class="menu-field">
+            <label class="label" for="start-level-select">NIVEL INICIAL</label>
+            <select id="start-level-select" class="menu-select"></select>
+            <span class="menu-hint">Se aplica a la próxima partida</span>
+          </div>
+        </div>
+
+        <!-- Sub-vista: lista de controles -->
+        <div id="pause-controls" class="menu-view hidden">
+          <p class="menu-title">CONTROLES</p>
+          <div class="controls menu-controls">
+            <ul>
+              <li><kbd>←</kbd><kbd>→</kbd> mover</li>
+              <li><kbd>↑</kbd> o <kbd>X</kbd> rotar</li>
+              <li><kbd>↓</kbd> bajar</li>
+              <li><kbd>Space</kbd> caída rápida</li>
+              <li><kbd>P</kbd> o <kbd>Esc</kbd> pausa</li>
+            </ul>
+          </div>
+          <button id="controls-back-btn" class="btn btn-menu" type="button">Volver</button>
+        </div>
       </div>
     </div>
   </div>

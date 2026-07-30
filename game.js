@@ -28,6 +28,10 @@ const PIECES = [
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
 
+const RECORDS_KEY = 'tetris-records';
+const MAX_RECORDS = 5;
+const NAME_FALLBACK = 'ANÓNIMO';
+
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
@@ -35,14 +39,31 @@ const nextCtx = nextCanvas.getContext('2d');
 const scoreEl = document.getElementById('score');
 const linesEl = document.getElementById('lines');
 const levelEl = document.getElementById('level');
+const comboEl = document.getElementById('combo');
 const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggle = document.getElementById('theme-toggle');
+const recordsBox = document.getElementById('records');
+const recordsList = document.getElementById('records-list');
+const recordsEmpty = document.getElementById('records-empty');
+const bestComboEl = document.getElementById('best-combo');
+const maxLinesEl = document.getElementById('max-lines');
+const resetRecordsBtn = document.getElementById('reset-records-btn');
+const nameForm = document.getElementById('name-form');
+const nameInput = document.getElementById('player-name');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let combo, maxCombo;
+// started = false en la pantalla de inicio: no hay pieza en juego que dibujar ni controlar
+let started = false;
 let gridColor;
+
+// records: { top: [{name, score, lines}], bestCombo, maxLines }
+let records = loadRecords();
+let pending = null;      // candidato al top aún sin nombre guardado
+let highlightIndex = -1; // fila del top resaltada tras guardar
 
 function readThemeVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -52,6 +73,93 @@ function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('tetris-theme', theme);
   gridColor = readThemeVar('--grid-line');
+}
+
+/* ---------- Records (localStorage) ---------- */
+
+function emptyRecords() {
+  return { top: [], bestCombo: 0, maxLines: 0 };
+}
+
+function loadRecords() {
+  let raw;
+  try {
+    raw = JSON.parse(localStorage.getItem(RECORDS_KEY));
+  } catch {
+    return emptyRecords(); // datos corruptos: se empieza de cero
+  }
+  if (!raw || typeof raw !== 'object') return emptyRecords();
+  const top = (Array.isArray(raw.top) ? raw.top : [])
+    .filter(e => e && typeof e.name === 'string' && Number.isFinite(e.score))
+    .map(e => ({ name: e.name, score: e.score, lines: Number(e.lines) || 0 }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, MAX_RECORDS);
+  return {
+    top,
+    bestCombo: Number(raw.bestCombo) || 0,
+    maxLines: Number(raw.maxLines) || 0,
+  };
+}
+
+function saveRecords() {
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+}
+
+function isTopScore(value) {
+  return value > 0 && (records.top.length < MAX_RECORDS || value > records.top[records.top.length - 1].score);
+}
+
+function comboText(n) {
+  return n >= 2 ? `x${n}` : '—';
+}
+
+function rankOf(value) {
+  const i = records.top.findIndex(e => value > e.score);
+  return i === -1 ? records.top.length : i;
+}
+
+function addRecord(name, value, clearedLines) {
+  const i = rankOf(value);
+  records.top.splice(i, 0, { name, score: value, lines: clearedLines });
+  records.top.length = Math.min(records.top.length, MAX_RECORDS);
+  saveRecords();
+  return i;
+}
+
+function renderRecords() {
+  const rows = records.top.map((e, i) => ({ ...e, mark: i === highlightIndex }));
+  if (pending) {
+    rows.splice(rankOf(pending.score), 0, {
+      name: pending.name || 'TÚ',
+      score: pending.score,
+      lines: pending.lines,
+      mark: true,
+    });
+  }
+  rows.length = Math.min(rows.length, MAX_RECORDS);
+
+  recordsList.replaceChildren();
+  rows.forEach((e, i) => {
+    const li = document.createElement('li');
+    if (e.mark) li.classList.add('is-new');
+    const cells = [
+      ['rk', `${i + 1}.`],
+      ['nm', e.name],
+      ['sc', e.score.toLocaleString()],
+      ['ln', `${e.lines} L`],
+    ];
+    for (const [cls, text] of cells) {
+      const span = document.createElement('span');
+      span.className = cls;
+      span.textContent = text;
+      li.appendChild(span);
+    }
+    recordsList.appendChild(li);
+  });
+
+  recordsEmpty.classList.toggle('hidden', rows.length > 0);
+  bestComboEl.textContent = comboText(records.bestCombo);
+  maxLinesEl.textContent = records.maxLines;
 }
 
 function createBoard() {
@@ -122,6 +230,7 @@ function clearLines() {
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
+  return cleared;
 }
 
 function ghostY() {
@@ -149,7 +258,14 @@ function softDrop() {
 
 function lockPiece() {
   merge();
-  clearLines();
+  // combo = piezas encadenadas que han limpiado línea; se corta al asentar sin limpiar
+  if (clearLines()) {
+    combo++;
+    if (combo > maxCombo) maxCombo = combo;
+  } else {
+    combo = 0;
+  }
+  updateHUD();
   spawn();
 }
 
@@ -166,6 +282,7 @@ function updateHUD() {
   scoreEl.textContent = score.toLocaleString();
   linesEl.textContent = lines;
   levelEl.textContent = level;
+  comboEl.textContent = comboText(combo);
 }
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
@@ -206,8 +323,9 @@ function draw() {
     for (let c = 0; c < COLS; c++)
       drawBlock(ctx, c, r, board[r][c], BLOCK);
 
-  // tras el Game Over la pieza actual está solapada con la pila: no se dibuja
-  if (gameOver) return;
+  // tras el Game Over la pieza actual está solapada con la pila: no se dibuja.
+  // En la pantalla de inicio (!started) todavía no hay pieza en juego.
+  if (gameOver || !started) return;
 
   // ghost
   const gy = ghostY();
@@ -239,28 +357,71 @@ function endGame() {
   cancelAnimationFrame(animId);
   animId = null;
   draw(); // frame final: el tablero asentado, sin más fichas
+
+  // el mejor combo y las líneas máximas se guardan siempre, entre o no en el top
+  records.bestCombo = Math.max(records.bestCombo, maxCombo);
+  records.maxLines = Math.max(records.maxLines, lines);
+  saveRecords();
+
+  overlayTitle.classList.remove('start');
   overlayTitle.textContent = 'GAME OVER';
-  overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+  overlayScore.textContent =
+    `Puntuación: ${score.toLocaleString()} · Líneas: ${lines} · Combo: ${comboText(maxCombo)}`;
+  restartBtn.textContent = 'Reiniciar';
+
+  highlightIndex = -1;
+  pending = isTopScore(score) ? { name: '', score, lines } : null;
+  nameForm.classList.toggle('hidden', !pending);
+  recordsBox.classList.remove('hidden');
+  renderRecords();
+  overlay.classList.remove('hidden');
+  if (pending) {
+    nameInput.value = '';
+    nameInput.focus();
+  }
+}
+
+function showStart() {
+  resetState();
+  started = false;
+  cancelAnimationFrame(animId);
+  animId = null;
+  updateHUD();
+  nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+  draw();
+
+  overlayTitle.classList.add('start');
+  overlayTitle.textContent = 'TETRIS';
+  overlayScore.textContent = 'Pulsa Jugar para empezar';
+  restartBtn.textContent = 'Jugar';
+  nameForm.classList.add('hidden');
+  recordsBox.classList.remove('hidden');
+  renderRecords();
   overlay.classList.remove('hidden');
 }
 
 function togglePause() {
-  if (gameOver) return;
+  if (gameOver || !started) return;
   paused = !paused;
   if (!paused) {
+    overlay.classList.add('hidden');
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
+    overlayTitle.classList.remove('start');
     overlayTitle.textContent = 'PAUSA';
     overlayScore.textContent = '';
+    restartBtn.textContent = 'Reiniciar';
+    nameForm.classList.add('hidden');
+    recordsBox.classList.add('hidden');
     overlay.classList.remove('hidden');
   }
 }
 
 function loop(ts) {
   // corta cualquier frame agendado antes de terminar o pausar la partida
-  if (gameOver || paused) return;
+  if (gameOver || paused || !started) return;
   const dt = ts - lastTime;
   lastTime = ts;
   dropAccum += dt;
@@ -275,23 +436,36 @@ function loop(ts) {
   draw();
   // lockPiece() puede haber terminado la partida en este mismo frame:
   // no reprogramar, o el bucle seguiría generando fichas tras el Game Over
-  if (gameOver || paused) return;
+  if (gameOver || paused || !started) return;
   animId = requestAnimationFrame(loop);
 }
 
-function init() {
+function resetState() {
   board = createBoard();
   score = 0;
   lines = 0;
   level = 1;
+  combo = 0;
+  maxCombo = 0;
   paused = false;
   gameOver = false;
   dropInterval = 1000;
   dropAccum = 0;
-  lastTime = performance.now();
+  pending = null;
+  highlightIndex = -1;
   next = randomPiece();
+}
+
+function init() {
+  // si se reinicia con un record pendiente de nombre, no se pierde la puntuación
+  if (pending) addRecord(pending.name || NAME_FALLBACK, pending.score, pending.lines);
+  resetState();
+  started = true;
+  lastTime = performance.now();
   spawn();
   updateHUD();
+  nameForm.classList.add('hidden');
+  recordsBox.classList.add('hidden');
   overlay.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
@@ -301,11 +475,13 @@ themeToggle.checked = document.documentElement.getAttribute('data-theme') === 'l
 gridColor = readThemeVar('--grid-line');
 themeToggle.addEventListener('change', () => {
   applyTheme(themeToggle.checked ? 'light' : 'dark');
+  draw(); // el color de la rejilla cambia y puede no haber bucle repintando
 });
 
 document.addEventListener('keydown', e => {
+  if (e.target === nameInput) return; // se está escribiendo el nombre del record
   if (e.code === 'KeyP') { togglePause(); return; }
-  if (paused || gameOver) return;
+  if (paused || gameOver || !started) return;
   switch (e.code) {
     case 'ArrowLeft':
       if (!collide(current.shape, current.x - 1, current.y)) current.x--;
@@ -330,4 +506,32 @@ document.addEventListener('keydown', e => {
 
 restartBtn.addEventListener('click', init);
 
-init();
+// nombre escrito: la fila resaltada del candidato se actualiza en vivo
+nameInput.addEventListener('input', () => {
+  if (!pending) return;
+  pending.name = nameInput.value.trim();
+  renderRecords();
+});
+
+nameForm.addEventListener('submit', e => {
+  e.preventDefault();
+  if (!pending) return;
+  const name = nameInput.value.trim() || NAME_FALLBACK;
+  highlightIndex = addRecord(name, pending.score, pending.lines);
+  pending = null;
+  nameForm.classList.add('hidden');
+  renderRecords();
+  restartBtn.focus();
+});
+
+resetRecordsBtn.addEventListener('click', () => {
+  if (!confirm('¿Borrar todos los records guardados?')) return;
+  records = emptyRecords();
+  localStorage.removeItem(RECORDS_KEY);
+  pending = null;
+  highlightIndex = -1;
+  nameForm.classList.add('hidden');
+  renderRecords();
+});
+
+showStart();

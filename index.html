@@ -35,6 +35,10 @@
           <span class="label">LEVEL</span>
           <span class="value" id="level">1</span>
         </div>
+        <div class="panel-section">
+          <span class="label">COMBO</span>
+          <span class="value" id="combo">—</span>
+        </div>
 
         <div class="panel-section">
           <span class="label">NEXT</span>
@@ -58,6 +62,32 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
+
+        <form id="name-form" class="name-form hidden" autocomplete="off">
+          <span class="name-prompt">¡Entras en el TOP 5!</span>
+          <div class="name-row">
+            <input type="text" id="player-name" maxlength="12" placeholder="Tu nombre" aria-label="Nombre del jugador" />
+            <button type="submit" id="save-btn">Guardar</button>
+          </div>
+        </form>
+
+        <div id="records" class="records hidden">
+          <span class="label">MEJORES PUNTUACIONES</span>
+          <ol id="records-list" class="records-list"></ol>
+          <p id="records-empty" class="records-empty hidden">Aún no hay records</p>
+          <div class="records-stats">
+            <div>
+              <span class="label">MEJOR COMBO</span>
+              <span class="stat" id="best-combo">—</span>
+            </div>
+            <div>
+              <span class="label">MÁX. LÍNEAS</span>
+              <span class="stat" id="max-lines">0</span>
+            </div>
+          </div>
+          <button type="button" id="reset-records-btn" class="ghost-btn">Borrar records</button>
+        </div>
+
         <button id="restart-btn">Reiniciar</button>
       </div>
     </div>

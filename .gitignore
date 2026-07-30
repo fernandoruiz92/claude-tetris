@@ -1,1 +1,4 @@
 .DS_STORE
+
+# Worktrees creados por el comando /worktree
+.trees/

@@ -35,6 +35,7 @@ const nextCtx = nextCanvas.getContext('2d');
 const scoreEl = document.getElementById('score');
 const linesEl = document.getElementById('lines');
 const levelEl = document.getElementById('level');
+const comboEl = document.getElementById('combo');
 const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
@@ -43,6 +44,7 @@ const themeToggle = document.getElementById('theme-toggle');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let gridColor;
+let combo, bestCombo;
 
 function readThemeVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -116,12 +118,21 @@ function clearLines() {
     }
   }
   if (cleared) {
+    // cadena de jugadas consecutivas que limpian línea
+    combo++;
+    if (combo > bestCombo) bestCombo = combo;
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
+    // bonus a partir de la segunda limpieza consecutiva
+    if (combo >= 2) score += 50 * combo * level;
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
-    updateHUD();
+    flashCombo();
+  } else {
+    // la pieza asienta sin limpiar nada: se rompe la cadena
+    combo = 0;
   }
+  updateHUD();
 }
 
 function ghostY() {
@@ -166,6 +177,16 @@ function updateHUD() {
   scoreEl.textContent = score.toLocaleString();
   linesEl.textContent = lines;
   levelEl.textContent = level;
+  comboEl.textContent = combo;
+  // se destaca sólo cuando el combo ya otorga bonus
+  comboEl.classList.toggle('combo-active', combo >= 2);
+}
+
+// reinicia la animación de rebote cada vez que sube el combo
+function flashCombo() {
+  comboEl.classList.remove('combo-hit');
+  void comboEl.offsetWidth; // fuerza el reflow para relanzar la animación
+  comboEl.classList.add('combo-hit');
 }
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
@@ -289,6 +310,9 @@ function init() {
   dropInterval = 1000;
   dropAccum = 0;
   lastTime = performance.now();
+  combo = 0;
+  bestCombo = 0;
+  comboEl.classList.remove('combo-hit');
   next = randomPiece();
   spawn();
   updateHUD();

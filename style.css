@@ -26,6 +26,7 @@
   --switch-bg: #22223a;
   --switch-border: #3a3a5a;
   --switch-knob: #7aa2f7;
+  --combo-color: #ffd54f;
 }
 
 [data-theme="light"] {
@@ -50,6 +51,7 @@
   --switch-bg: #c8c8d8;
   --switch-border: #b0b0c0;
   --switch-knob: #3b5bdb;
+  --combo-color: #b26a00;
 }
 
 body {
@@ -127,6 +129,26 @@ body {
   font-weight: 700;
   color: var(--value-color);
   letter-spacing: 1px;
+}
+
+/* ---- Combo ---- */
+#combo {
+  /* ancho ajustado al contenido para que el rebote no desborde el panel */
+  align-self: flex-start;
+  transform-origin: left center;
+}
+
+#combo.combo-active {
+  color: var(--combo-color);
+}
+
+#combo.combo-hit {
+  animation: combo-pop 0.35s ease-out;
+}
+
+@keyframes combo-pop {
+  0%   { transform: scale(1.5); }
+  100% { transform: scale(1); }
 }
 
 #next-canvas {

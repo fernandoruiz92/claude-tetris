@@ -20,9 +20,14 @@
   --controls-color: #888;
   --overlay-bg: rgba(10, 10, 20, 0.75);
   --overlay-title-color: #e57373;
+  --overlay-pause-color: #7aa2f7;
+  --overlay-hint-color: #6a6a85;
   --restart-bg: #7aa2f7;
   --restart-color: #0f0f17;
   --restart-hover: #9bbdff;
+  --menu-alt-color: #9bbdff;
+  --menu-alt-border: #3a3a5a;
+  --menu-alt-hover: rgba(122, 162, 247, 0.15);
   --switch-bg: #22223a;
   --switch-border: #3a3a5a;
   --switch-knob: #7aa2f7;
@@ -44,9 +49,14 @@
   --controls-color: #555;
   --overlay-bg: rgba(240, 240, 245, 0.85);
   --overlay-title-color: #d32f2f;
+  --overlay-pause-color: #3b5bdb;
+  --overlay-hint-color: #7a7a90;
   --restart-bg: #3b5bdb;
   --restart-color: #ffffff;
   --restart-hover: #5c7ce8;
+  --menu-alt-color: #3b5bdb;
+  --menu-alt-border: #c8c8d8;
+  --menu-alt-hover: rgba(59, 91, 219, 0.12);
   --switch-bg: #c8c8d8;
   --switch-border: #b0b0c0;
   --switch-knob: #3b5bdb;
@@ -240,20 +250,63 @@ kbd {
   color: var(--value-color);
 }
 
-#restart-btn {
+#overlay-title.paused {
+  color: var(--overlay-pause-color);
+}
+
+.overlay-hint {
+  font-size: 11px;
+  color: var(--overlay-hint-color);
+}
+
+.overlay-hint.hidden {
+  display: none;
+}
+
+/* ---- Menú del overlay (pausa / game over) ---- */
+.overlay-menu {
   margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 180px;
+}
+
+.overlay-menu button {
   background: var(--restart-bg);
   color: var(--restart-color);
-  border: none;
+  border: 1px solid transparent;
   border-radius: 6px;
   padding: 10px 28px;
   font-size: 14px;
   font-weight: 700;
+  font-family: inherit;
   cursor: pointer;
   letter-spacing: 1px;
   transition: background 0.15s;
 }
 
-#restart-btn:hover {
+.overlay-menu button:hover {
   background: var(--restart-hover);
+}
+
+.overlay-menu button:focus-visible {
+  outline: 2px solid var(--value-color);
+  outline-offset: 2px;
+}
+
+.overlay-menu button.hidden {
+  display: none;
+}
+
+/* con el menú de pausa visible, Reanudar es la acción principal
+   y Reiniciar pasa a estilo secundario */
+#resume-btn:not(.hidden) + #restart-btn {
+  background: transparent;
+  color: var(--menu-alt-color);
+  border-color: var(--menu-alt-border);
+}
+
+#resume-btn:not(.hidden) + #restart-btn:hover {
+  background: var(--menu-alt-hover);
 }

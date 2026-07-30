@@ -38,6 +38,8 @@ const levelEl = document.getElementById('level');
 const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
+const overlayHint = document.getElementById('overlay-hint');
+const resumeBtn = document.getElementById('resume-btn');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggle = document.getElementById('theme-toggle');
 
@@ -233,6 +235,13 @@ function drawNext() {
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
 }
 
+function hideOverlay() {
+  overlay.classList.add('hidden');
+  resumeBtn.classList.add('hidden');
+  overlayHint.classList.add('hidden');
+  overlayTitle.classList.remove('paused');
+}
+
 function endGame() {
   if (gameOver) return;
   gameOver = true;
@@ -240,22 +249,43 @@ function endGame() {
   animId = null;
   draw(); // frame final: el tablero asentado, sin más fichas
   overlayTitle.textContent = 'GAME OVER';
+  overlayTitle.classList.remove('paused');
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+  // sin partida a la que volver: el menú se queda solo con Reiniciar
+  resumeBtn.classList.add('hidden');
+  overlayHint.classList.add('hidden');
   overlay.classList.remove('hidden');
+  // no se enfoca Reiniciar: con Space aún pulsado (caída rápida) el navegador
+  // activaría el botón y reiniciaría la partida sin querer
+}
+
+function pauseGame() {
+  if (paused || gameOver) return;
+  paused = true;
+  cancelAnimationFrame(animId);
+  animId = null;
+  overlayTitle.textContent = 'PAUSA';
+  overlayTitle.classList.add('paused');
+  overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+  resumeBtn.classList.remove('hidden');
+  overlayHint.classList.remove('hidden');
+  overlay.classList.remove('hidden');
+  resumeBtn.focus();
+}
+
+function resumeGame() {
+  if (!paused || gameOver) return;
+  paused = false;
+  hideOverlay();
+  // se descarta el hueco de la pausa para que la pieza no dé un salto
+  lastTime = performance.now();
+  loop(lastTime);
 }
 
 function togglePause() {
   if (gameOver) return;
-  paused = !paused;
-  if (!paused) {
-    lastTime = performance.now();
-    loop(lastTime);
-  } else {
-    cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
-  }
+  if (paused) resumeGame();
+  else pauseGame();
 }
 
 function loop(ts) {
@@ -292,7 +322,7 @@ function init() {
   next = randomPiece();
   spawn();
   updateHUD();
-  overlay.classList.add('hidden');
+  hideOverlay();
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
@@ -304,7 +334,7 @@ themeToggle.addEventListener('change', () => {
 });
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
@@ -328,6 +358,7 @@ document.addEventListener('keydown', e => {
   updateHUD();
 });
 
+resumeBtn.addEventListener('click', resumeGame);
 restartBtn.addEventListener('click', init);
 
 init();

@@ -48,7 +48,7 @@
             <li><kbd>↑</kbd> rotar</li>
             <li><kbd>↓</kbd> bajar</li>
             <li><kbd>Space</kbd> caída</li>
-            <li><kbd>P</kbd> pausa</li>
+            <li><kbd>P</kbd><kbd>Esc</kbd> pausa</li>
           </ul>
         </div>
       </aside>
@@ -58,7 +58,13 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
-        <button id="restart-btn">Reiniciar</button>
+        <div class="overlay-menu">
+          <button id="resume-btn">Reanudar</button>
+          <button id="restart-btn">Reiniciar</button>
+        </div>
+        <p id="overlay-hint" class="overlay-hint hidden">
+          <kbd>P</kbd> o <kbd>Esc</kbd> también reanudan
+        </p>
       </div>
     </div>
   </div>

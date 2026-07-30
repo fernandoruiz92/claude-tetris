@@ -16,19 +16,23 @@ start index.html
 
 Or serve statically (any server works): `python -m http.server 8000`, `npx serve .`.
 
-Verification is manual in the browser: play a few pieces, clear a line, check SCORE/LINES/LEVEL update, hit `P` for pause and force a Game Over.
+Verification is manual in the browser: play a few pieces, clear a line, check SCORE/LINES/LEVEL update, hit `P` for the pause menu (Reanudar should resume without the piece jumping), switch the SKIN selector in both themes, and force a Game Over.
 
-Controls: `←`/`→` move, `↑` or `X` rotate CW, `↓` soft drop, `Space` hard drop, `P` pause.
+Controls: `←`/`→` move, `↑` or `X` rotate CW, `↓` soft drop, `Space` hard drop, `P`/`Esc` pause.
 
 ## Architecture (`game.js`)
 
 Single global scope under `'use strict'`, no modules or classes. All state lives in one `let` declaration at the top (`board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId`) and is reset by `init()`, which is also the restart handler. DOM nodes are looked up once at load time into module-level consts, so `game.js` must stay loaded after the markup (`<script>` at end of `<body>`).
 
 Data model:
-- `board` — `ROWS × COLS` array of ints; `0` = empty, `1–7` = piece type, which indexes both `COLORS` and `PIECES`. Piece type doubles as the color key, so the two arrays must stay index-aligned (both have a `null` at index 0).
+- `board` — `ROWS × COLS` array of ints; `0` = empty, `1–7` = piece type, which indexes both `PIECES` and every skin palette (`COLORS` for retro, `NEON_COLORS` for neon). Piece type doubles as the color key, so all of those arrays must stay index-aligned (each has a `null` at index 0).
 - `current`/`next` — `{ type, shape, x, y }`. `shape` is a square matrix filled with the piece's own type number; rotation is a fresh matrix from `rotateCW` (transpose + row reverse), not an index into a rotation table.
 
-Game loop: `loop(ts)` is a `requestAnimationFrame` chain accumulating `dt` into `dropAccum` and stepping down one row when it exceeds `dropInterval`. Pause/resume works by cancelling `animId` and re-entering `loop` with `lastTime` reset (skipping that gap so the piece doesn't jump). Rendering is a full redraw every frame: `drawGrid` → settled board → ghost (`globalAlpha = 0.2`) → current piece, all via the shared `drawBlock(context, x, y, colorIndex, size, alpha)` helper, which is reused for the NEXT preview canvas.
+Game loop: `loop(ts)` is a `requestAnimationFrame` chain accumulating `dt` into `dropAccum` and stepping down one row when it exceeds `dropInterval`. Pause/resume works by cancelling `animId` and re-entering `loop` with `lastTime` reset (skipping that gap so the piece doesn't jump); `togglePause` just dispatches to `pauseGame`/`resumeGame`, both guarded so they are no-ops in the wrong state. Rendering is a full redraw every frame: `drawGrid` → settled board → ghost (`SKINS[skin].ghostAlpha`) → current piece, all via the shared `drawBlock(context, x, y, colorIndex, size, alpha)` helper, which is reused for the NEXT preview canvas.
+
+Overlay: one `#overlay` serves both PAUSA and GAME OVER. `pauseGame` shows `#resume-btn` + `#overlay-hint` and adds `.paused` to the title; `endGame` hides both so only Reiniciar remains, and deliberately does *not* focus a button (with `Space` still down from a hard drop the browser would activate it and restart the game). `hideOverlay()` is the single place that resets all of that, so `init()` calls it instead of just un-hiding. The CSS sibling selector `#resume-btn:not(.hidden) + #restart-btn` demotes Reiniciar to secondary styling while the pause menu is open — it depends on the two buttons staying adjacent inside `.overlay-menu`.
+
+Skins: the `SKINS` table (`retro`, `neon`) holds the palette plus `glow` (canvas `shadowBlur` radius, `0` = flat blocks) and `ghostAlpha`; `drawBlock` branches on `glow`. Everything outside the canvas is CSS: `applySkin` sets `data-skin` on `<html>` and the `[data-skin="neon"]` block overrides the theme custom properties (it sits after `[data-theme="light"]` so it wins on source order). `applyTheme`/`applySkin` both re-read `--grid-line` and call `redraw()`, since the change must show while the loop is stopped (pause / game over). Neon disables the theme toggle — it replaces the whole palette. Selection persists in `localStorage` (`tetris-skin`) and is applied by the inline `<head>` script to avoid a flash.
 
 Collision is the single gate for every movement: `collide(shape, ox, oy)` returns true on out-of-bounds or overlap, and callers check it before mutating `current`. `ny < 0` is deliberately allowed so a piece can straddle the top edge. `tryRotate` implements simplified wall kicks by retrying the rotated shape at x-offsets `[0, -1, 1, -2, 2]` — not SRS.
 

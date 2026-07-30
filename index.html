@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="style.css" />
   <script>
     document.documentElement.setAttribute('data-theme', localStorage.getItem('tetris-theme') || 'dark');
+    document.documentElement.setAttribute('data-skin', localStorage.getItem('tetris-skin') || 'retro');
   </script>
 </head>
 <body>
@@ -39,6 +40,14 @@
         <div class="panel-section">
           <span class="label">NEXT</span>
           <canvas id="next-canvas" width="120" height="120"></canvas>
+        </div>
+
+        <div class="panel-section">
+          <span class="label">SKIN</span>
+          <select id="skin-select" title="Cambiar apariencia">
+            <option value="retro">Retro</option>
+            <option value="neon">Neon</option>
+          </select>
         </div>
 
         <div class="panel-section controls">

@@ -4,6 +4,8 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
+// Paleta del skin Retro. El índice es el tipo de pieza: debe seguir
+// alineado con PIECES (ambos con null en la posición 0).
 const COLORS = [
   null,
   '#4dd0e1', // I - cyan
@@ -14,6 +16,25 @@ const COLORS = [
   '#a3c9f7', // J - azul pálido
   '#ffb74d', // L - orange
 ];
+
+// Paleta del skin Neon: mismos índices, colores saturados sobre negro.
+const NEON_COLORS = [
+  null,
+  '#00f0ff', // I
+  '#ffe600', // O
+  '#d16bff', // T
+  '#39ff88', // S
+  '#ff3b6b', // Z
+  '#5b9dff', // J
+  '#ff9f1c', // L
+];
+
+// glow = radio del shadowBlur en canvas (0 = sin halo, bloques planos)
+// ghostAlpha = opacidad de la sombra de caída
+const SKINS = {
+  retro: { colors: COLORS, glow: 0, ghostAlpha: 0.2 },
+  neon: { colors: NEON_COLORS, glow: 14, ghostAlpha: 0.35 },
+};
 
 const PIECES = [
   null,
@@ -42,18 +63,38 @@ const overlayHint = document.getElementById('overlay-hint');
 const resumeBtn = document.getElementById('resume-btn');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggle = document.getElementById('theme-toggle');
+const skinSelect = document.getElementById('skin-select');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
-let gridColor;
+let gridColor, skin;
 
 function readThemeVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// Repinta fuera del bucle: el cambio de tema/skin debe verse aunque la
+// partida esté en pausa o terminada (con animId cancelado).
+function redraw() {
+  if (!board) return;
+  draw();
+  drawNext();
 }
 
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('tetris-theme', theme);
   gridColor = readThemeVar('--grid-line');
+  redraw();
+}
+
+function applySkin(name) {
+  skin = SKINS[name] ? name : 'retro';
+  document.documentElement.setAttribute('data-skin', skin);
+  localStorage.setItem('tetris-skin', skin);
+  // Neon trae su propia paleta y pisa el tema claro/oscuro: el toggle no aplica
+  themeToggle.disabled = skin === 'neon';
+  gridColor = readThemeVar('--grid-line');
+  redraw();
 }
 
 function createBoard() {
@@ -172,13 +213,34 @@ function updateHUD() {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
-  context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+  const { colors, glow } = SKINS[skin];
+  const color = colors[colorIndex];
+  const px = x * size + 1;
+  const py = y * size + 1;
+  const s = size - 2;
+  const a = alpha ?? 1;
+
+  if (glow) {
+    // Neon: relleno tenue, borde brillante y halo alrededor del bloque.
+    // El blur se escala con el tamaño para que el NEXT (30px) no se sature.
+    context.shadowColor = color;
+    context.shadowBlur = glow * (size / BLOCK);
+    context.globalAlpha = a * 0.28;
+    context.fillStyle = color;
+    context.fillRect(px, py, s, s);
+    context.globalAlpha = a;
+    context.strokeStyle = color;
+    context.lineWidth = 2;
+    context.strokeRect(px + 1, py + 1, s - 2, s - 2);
+    context.shadowBlur = 0;
+  } else {
+    context.globalAlpha = a;
+    context.fillStyle = color;
+    context.fillRect(px, py, s, s);
+    // highlight
+    context.fillStyle = 'rgba(255,255,255,0.12)';
+    context.fillRect(px, py, s, 4);
+  }
   context.globalAlpha = 1;
 }
 
@@ -216,7 +278,7 @@ function draw() {
   for (let r = 0; r < current.shape.length; r++)
     for (let c = 0; c < current.shape[r].length; c++)
       if (current.shape[r][c])
-        drawBlock(ctx, current.x + c, gy + r, current.shape[r][c], BLOCK, 0.2);
+        drawBlock(ctx, current.x + c, gy + r, current.shape[r][c], BLOCK, SKINS[skin].ghostAlpha);
 
   // current piece
   for (let r = 0; r < current.shape.length; r++)
@@ -328,12 +390,21 @@ function init() {
 }
 
 themeToggle.checked = document.documentElement.getAttribute('data-theme') === 'light';
-gridColor = readThemeVar('--grid-line');
+applySkin(document.documentElement.getAttribute('data-skin'));
+skinSelect.value = skin;
+
 themeToggle.addEventListener('change', () => {
   applyTheme(themeToggle.checked ? 'light' : 'dark');
 });
 
+skinSelect.addEventListener('change', () => {
+  applySkin(skinSelect.value);
+  skinSelect.blur(); // devuelve el foco al juego: las flechas mueven la pieza
+});
+
 document.addEventListener('keydown', e => {
+  // con el selector enfocado las teclas son suyas, no del juego
+  if (e.target === skinSelect) return;
   if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
